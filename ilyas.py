@@ -206,47 +206,42 @@ def run_bot():
                 print(f"Error sending image: {e}")
                 await message.channel.send("An error occurred while sending the image.")
 
-        if message.content.startswith("?heartsteel"):  # Play a local MP3 file even if a song is playing
+        if message.content.startswith("?heartsteel"):  # Play the Heartsteel sound if no song is playing
             try:
                 # Ensure the bot is in a voice channel
                 if not message.author.voice or not message.author.voice.channel:
                     await message.channel.send("You need to be in a voice channel to use this command.")
                     return
 
-                # Connect to the user's voice channel if not already connected
+                # Connect to the voice channel if not already connected
                 if guild_id not in voice_clients or not voice_clients[guild_id].is_connected():
                     voice_client = await message.author.voice.channel.connect()
                     voice_clients[guild_id] = voice_client
                 else:
                     voice_client = voice_clients[guild_id]
 
-                # Path to the local MP3 file
-                file_path = "heartsteel.mp3"
-                if not os.path.exists(file_path):
-                    await message.channel.send("The sound file could not be found.")
+                # Check if a song is already playing
+                if voice_client.is_playing():
+                    await message.channel.send("❌ **Cannot play Heartsteel sound while music is playing.**")
                     return
 
-                # Save the current audio source if something is playing
-                current_audio = None
-                if voice_client.is_playing():
-                    current_audio = voice_client.source  # Save the current audio source
-                    voice_client.pause()
+                # Path to the Heartsteel MP3 file
+                heartsteel_path = "heartsteel.mp3"
+                if not os.path.exists(heartsteel_path):
+                    await message.channel.send("❌ **The Heartsteel sound file could not be found.**")
+                    return
 
-                # Function to resume the saved audio source
+                # Play the Heartsteel sound
                 def after_heartsteel(error):
-                    if current_audio:  # If there was a song playing before
-                        voice_client.play(current_audio)  # Replay the saved audio stream
-                        print("Resumed the original song.")
+                    print("Heartsteel sound playback complete.")
 
-                # Play the MP3 file
-                player = discord.FFmpegPCMAudio(file_path)
+                player = discord.FFmpegPCMAudio(heartsteel_path)
                 voice_client.play(player, after=after_heartsteel)
 
-                await message.channel.send("PLUS 1 HEARTSTEEL STACK")
+                await message.channel.send("🔊 **PLUS 1 HEARTSTEEL STACK!**")
+
             except Exception as e:
-                print(f"Error playing local file: {e}")
-                await message.channel.send("An error occurred while playing the sound.")
-
-
+                print(f"Error playing the Heartsteel sound: {e}")
+                await message.channel.send("❌ **An error occurred while playing the sound.**")
 
     client.run(TOKEN)
