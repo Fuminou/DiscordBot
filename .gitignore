@@ -1,0 +1,8 @@
+# Ignore the .env file
+.env
+
+# Ignore gunblade.png
+gunblade.png
+
+# Ignore heartsteel.mp3
+heartsteel.mp3
