@@ -244,4 +244,43 @@ def run_bot():
                 print(f"Error playing the Heartsteel sound: {e}")
                 await message.channel.send("❌ **An error occurred while playing the sound.**")
 
+        if message.content.startswith("?viktor"):  # Play the Viktor sound if no song is playing
+            try:
+                # Ensure the bot is in a voice channel
+                if not message.author.voice or not message.author.voice.channel:
+                    await message.channel.send("You need to be in a voice channel to use this command.")
+                    return
+
+                # Connect to the voice channel if not already connected
+                if guild_id not in voice_clients or not voice_clients[guild_id].is_connected():
+                    voice_client = await message.author.voice.channel.connect()
+                    voice_clients[guild_id] = voice_client
+                else:
+                    voice_client = voice_clients[guild_id]
+
+                # Check if a song is already playing
+                if voice_client.is_playing():
+                    await message.channel.send("❌ **Cannot play Viktor sound while music is playing.**")
+                    return
+
+                # Path to the Viktor MP3 file
+                viktor_path = "viktor.mp3"
+                if not os.path.exists(viktor_path):
+                    await message.channel.send("❌ **The Viktor sound file could not be found.**")
+                    return
+
+                # Play the Viktor sound
+                def after_viktor(error):
+                    print("Viktor sound playback complete.")
+
+                player = discord.FFmpegPCMAudio(viktor_path)
+                voice_client.play(player, after=after_viktor)
+
+                await message.channel.send("VIK TOR VIKTOOORRRRR")
+
+            except Exception as e:
+                print(f"Error playing the Viktor sound: {e}")
+                await message.channel.send("❌ **An error occurred while playing the sound.**")
+
+
     client.run(TOKEN)
