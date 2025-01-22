@@ -18,26 +18,34 @@ def run_bot():
     ytdl = yt_dlp.YoutubeDL(ytdl_options)
     ffmpeg_options = {'options': '-vn'}
 
+    looping_state = {}  # Dictionary to track looping state for each guild
+
     async def play_next_song(guild_id):
-        """Plays the next song in the queue."""
-        if queues[guild_id]:  # Check if the queue is not empty
+        """Plays the next song in the queue or loops the current song."""
+        if guild_id in looping_state and looping_state[guild_id]:  # Check if looping is enabled
+            # If looping is enabled, replay the current song
+            if queues[guild_id]:
+                song_info = queues[guild_id][0]  # Do not pop, replay the same song
+            else:
+                return  # No song to loop
+        elif queues[guild_id]:  # If not looping, play the next song
             song_info = queues[guild_id].pop(0)  # Get the next song (info dictionary)
-            song_url = song_info['url']  # URL for playback
-            song_title = song_info['title']  # Title of the song
+        else:  # If the queue is empty and no looping
+            return
 
-            try:
-                loop = asyncio.get_event_loop()
-                # Load FFmpeg player with the correct URL
-                player = discord.FFmpegPCMAudio(song_url, **ffmpeg_options)
+        song_url = song_info['url']
+        song_title = song_info['title']
 
-                # Play the song and announce it
-                voice_clients[guild_id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(
-                    play_next_song(guild_id), loop
-                ))
-                await song_info['message_channel'].send(f"Now playing: **{song_title}**")
-            except Exception as e:
-                print(f"Error playing audio: {e}")
-                await song_info['message_channel'].send("An error occurred while playing the song.")
+        try:
+            loop = asyncio.get_event_loop()
+            player = discord.FFmpegPCMAudio(song_url, **ffmpeg_options)
+            voice_clients[guild_id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(
+                play_next_song(guild_id), loop
+            ))
+            await song_info['message_channel'].send(f"Now playing: **{song_title}**")
+        except Exception as e:
+            print(f"Error playing audio: {e}")
+            await song_info['message_channel'].send("An error occurred while playing the song.")
 
     @client.event
     async def on_ready():
@@ -174,23 +182,49 @@ def run_bot():
             except Exception as e:
                 print(f"Error shuffling queue: {e}")
 
+        if message.content.startswith("?loop"):  # Loop the current song
+
+            try:
+                # Ensure the queue is initialized for the guild
+                if guild_id not in queues:
+                    queues[guild_id] = []  # Initialize an empty queue
+
+                # Check if there's a song currently playing or in the queue
+                if guild_id in voice_clients and voice_clients[guild_id].is_playing() or queues[guild_id]:
+                    if guild_id in looping_state and looping_state[guild_id]:
+                        looping_state[guild_id] = False  # Disable looping
+                        await message.channel.send("🔁 **Looping disabled for the current song.**")
+                        print(f"Queue: {queues[guild_id]}")
+                        print(f"Looping state: {looping_state[guild_id]}")
+                    else:
+                        looping_state[guild_id] = True  # Enable looping
+                        await message.channel.send("🔁 **Looping enabled for the current song.**")
+                        print(f"Queue: {queues[guild_id]}")
+                        print(f"Looping state: {looping_state[guild_id]}")
+                else:
+                    await message.channel.send("❌ **No song is currently playing or in the queue. Add a song to loop.**")
+            except Exception as e:
+                print(f"Error toggling looping: {e}")
+                await message.channel.send("❌ **An error occurred while toggling looping.**")
+
         if message.content.startswith("?help"):  # Help command
             commands = """
         **🎵 Music Bot Commands 🎵**
-        - `?play <YouTube URL>`: Play music from the given URL.
-        - `?play <Song Name>`: Play music from the given URL.
-        - `?pause` : Pause the current track.
-        - `?resume`: Resume the paused track.
-        - `?stop`  : Stop the current track and clear the queue.
-        - `?skip`  : Skip to the next song in the queue.
-        - `?queue` : Display the current song queue.
-        - `?clear` : Clear the current song queue.
-        - `?shuffle`: Shuffle the current song queue.
-        - `?dc`    : Disconnect the bot from the voice channel.
+        `?play <YouTube URL>`: Play music from the given URL.
+        `?play <Song Name>`: Play music from the given URL.
+        `?pause` : Pause the current track.
+        `?resume`: Resume the paused track.
+        `?stop`  : Stop the current track and clear the queue.
+        `?skip`  : Skip to the next song in the queue.
+        `?queue` : Display the current song queue.
+        `?clear` : Clear the current song queue.
+        `?shuffle`: Shuffle the current song queue.
+        `?dc`    : Disconnect the bot from the voice channel.
 
         **🔹 Other Commands 🔹**
-        - `?gunblade`: I MISS YOU.
-        - `?heartsteel`: PLUS 1 HEARTSTEEL STACK.
+        `?gunblade`: I MISS YOU.
+        `?heartsteel`: PLUS 1 HEARTSTEEL STACK.
+        `?viktor`: VIK TORRRRRRR.
         """
             await message.channel.send(commands)
 
